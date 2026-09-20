@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0284c7">
+  <title>MedStat LAN - Báo Cáo Bệnh Viện</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
+    body { background: #f1f5f9; color: #0f172a; padding: 12px; padding-bottom: 80px; }
+
+    #lockScreen {
+      position: fixed; inset: 0; background: #0f172a; z-index: 9999;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 24px; color: #fff; text-align: center;
+    }
+    .pin-box {
+      background: #1e293b; border: 1px solid #334155; border-radius: 12px;
+      padding: 24px; width: 100%; max-width: 320px; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .pin-input {
+      width: 100%; text-align: center; font-size: 1.5rem; letter-spacing: 6px;
+      padding: 10px; border-radius: 8px; border: 1px solid #475569; background: #0f172a;
+      color: #38bdf8; outline: none; margin: 16px 0;
+    }
+
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .header h1 { font-size: 1.15rem; color: #0284c7; }
+
+    .lan-indicator {
+      background: #e0f2fe; color: #0369a1; padding: 4px 8px; border-radius: 6px;
+      font-size: 0.72rem; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 8px;
+    }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #16a34a; }
+
+    .control-card { background: #fff; padding: 12px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; flex-direction: column; gap: 8px; }
+    .toggle-group { display: flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; }
+    .toggle-btn { flex: 1; padding: 8px; font-size: 0.85rem; font-weight: 600; border: none; background: #fff; color: #64748b; cursor: pointer; }
+    .toggle-btn.active { background: #0284c7; color: #fff; }
+    
+    .input-row { display: flex; gap: 8px; align-items: center; }
+    .input-control { width: 100%; padding: 8px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.9rem; background: #fff; outline: none; }
+    .input-control:focus { border-color: #0284c7; }
+
+    .card { background: #fff; padding: 14px; border-radius: 10px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .card-title { font-size: 0.95rem; font-weight: 700; margin-bottom: 10px; color: #1e293b; display: flex; justify-content: space-between; align-items: center; }
+
+    .stats-summary { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+    .stat-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px; text-align: center; }
+    .stat-box .title { font-size: 0.75rem; color: #64748b; }
+    .stat-box .val { font-size: 1.15rem; font-weight: 700; color: #0f172a; margin: 2px 0; }
+    .stat-box .diff { font-size: 0.75rem; font-weight: 600; }
+
+    .chart-box { width: 100%; overflow-x: auto; padding: 8px 0; }
+    svg { display: block; width: 100%; height: auto; }
+
+    .table-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 6px; border: 1px solid #e2e8f0; position: relative; }
+    table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; text-align: left; min-width: 600px; }
+    th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; white-space: nowrap; }
+    th { background: #f8fafc; color: #475569; font-weight: 600; }
+    tr:active { background: #e0f2fe; }
+
+    .sticky-col {
+      position: sticky;
+      left: 0;
+      z-index: 10;
+      background: #ffffff;
+      min-width: 175px;
+      max-width: 200px;
+      white-space: normal !important;
+      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.06);
+      border-right: 1px solid #e2e8f0;
+    }
+    th.sticky-col {
+      background: #f8fafc;
+      z-index: 20;
+    }
+    tr:active td.sticky-col {
+      background: #e0f2fe;
+    }
+
+    .tag-container { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
+    .tag { display: flex; flex-direction: column; background: #e0f2fe; color: #0369a1; padding: 4px 6px; border-radius: 4px; font-size: 0.72rem; line-height: 1.3; }
+    .tag-surg { background: #fef3c7; color: #92400e; }
+    .tag-row { display: flex; justify-content: space-between; align-items: center; }
+
+    .diff-up { color: #16a34a; }
+    .diff-down { color: #dc2626; }
+    .diff-same { color: #64748b; }
+
+    .form-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-group label { font-size: 0.75rem; color: #475569; font-weight: 600; }
+
+    .item-list-section { margin-top: 12px; border-top: 1px dashed #cbd5e1; padding-top: 10px; }
+    .sub-item-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
+
+    .btn { padding: 8px 12px; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; justify-content: center; align-items: center; gap: 4px; }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-secondary { background: #e2e8f0; color: #1e293b; font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; }
+    .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
+    .btn-outline { background: #fff; border: 1px dashed #0284c7; color: #0284c7; width: 100%; font-size: 0.8rem; padding: 6px; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+  <!-- MÀN HÌNH KHÓA PIN -->
+  <div id="lockScreen">
+    <div class="pin-box">
+      <div style="font-size: 2rem; margin-bottom: 6px;">🔒</div>
+      <h2 style="font-size: 1.1rem; font-weight: 700;">HỆ THỐNG NỘI BỘ LAN</h2>
+      <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Nhập mã PIN để mở khóa</p>
+      <input type="password" id="pinInput" class="pin-input" maxlength="8" placeholder="••••" autofocus>
+      <button class="btn btn-primary" style="width: 100%;" onclick="unlockApp()">XÁC NHẬN MỞ KHÓA</button>
+      <p id="pinError" style="color: #f87171; font-size: 0.75rem; margin-top: 10px; display: none;">Sai mã PIN!</p>
+    </div>
+  </div>
+
+  <!-- NỘI DUNG CHÍNH -->
+  <div id="mainApp" style="display: none;">
+    <div class="header">
+      <div>
+        <h1>🏥 MedStat Báo Cáo</h1>
+        <div class="lan-indicator"><span class="dot"></span> Đồng bộ Mạng LAN</div>
+      </div>
+      <div style="display: flex; gap: 5px;">
+        <button class="btn btn-secondary" onclick="fetchServerData()">🔄 Tải lại</button>
+        <button class="btn btn-danger btn-secondary" onclick="resetDatabaseAll()">🗑️ Xóa hết số liệu</button>
+        <button class="btn btn-secondary" onclick="changePinPrompt()">🔑 PIN</button>
+        <button class="btn btn-secondary" onclick="lockApp()">🔒</button>
+      </div>
+    </div>
+
+    <!-- BỘ CHỌN THỜI GIAN & XÓA KỲ -->
+    <div class="control-card">
+      <div class="toggle-group">
+        <button id="modeMonth" class="toggle-btn" onclick="setMode('month')">Theo Tháng</button>
+        <button id="modeWeek" class="toggle-btn active" onclick="setMode('week')">Theo Tuần</button>
+      </div>
+      <div class="input-row">
+        <input type="month" id="monthPicker" class="input-control" style="display: none;" onchange="onPeriodChange(this.value)">
+        <input type="week" id="weekPicker" class="input-control" onchange="onPeriodChange(this.value)">
+        <button class="btn btn-danger" style="white-space: nowrap; font-size: 0.75rem; padding: 7px 10px;" onclick="deleteCurrentPeriodData()">🗑️ Xóa cả kỳ này</button>
+      </div>
+    </div>
+
+    <!-- THỐNG KÊ NHANH -->
+    <div class="stats-summary" id="quickStats"></div>
+
+    <!-- BIỂU ĐỒ CỘT SO SÁNH -->
+    <div class="card">
+      <div class="card-title">
+        <span>Biểu đồ So sánh Bệnh nhân (Kỳ này vs Kỳ trước)</span>
+      </div>
+      <div class="chart-box" id="barChartBox"></div>
+    </div>
+
+    <!-- BẢNG BÁO CÁO KHOA PHÒNG & THỦ THUẬT -->
+    <div class="card">
+      <div class="card-title">
+        <span>Bảng Số Liệu Khoa / Phòng</span>
+        <span style="font-size: 0.75rem; font-weight: normal; color: #64748b;">(Chạm để sửa)</span>
+      </div>
+      <div class="table-box">
+        <table>
+          <thead>
+            <tr>
+              <th class="sticky-col">Khoa & Thủ thuật</th>
+              <th>Kỳ này</th>
+              <th>Kỳ trước</th>
+              <th>+/-</th>
+              <th>% Tăng</th>
+              <th>P.Thuật</th>
+              <th>T.Thuật</th>
+            </tr>
+          </thead>
+          <tbody id="dataTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BẢNG TỔNG HỢP CHI TIẾT THỦ THUẬT & PHẪU THUẬT -->
+    <div class="card">
+      <div class="card-title">
+        <span>Tổng Hợp Danh Mục Thủ Thuật Thực Hiện</span>
+      </div>
+      <div class="table-box">
+        <table>
+          <thead>
+            <tr>
+              <th class="sticky-col">Tên Thủ thuật / Phẫu thuật</th>
+              <th>Khoa</th>
+              <th>Kỳ này</th>
+              <th>Kỳ trước</th>
+              <th>+/-</th>
+              <th>% Tăng</th>
+            </tr>
+          </thead>
+          <tbody id="procedureSummaryTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- FORM NHẬP / SỬA / XÓA SỐ LIỆU -->
+    <div class="card" id="editCard">
+      <div class="card-title">
+        <span id="formTitle">Nhập / Sửa Số Liệu Khoa</span>
+        <button class="btn btn-secondary" onclick="copyPrevPeriod()">Sao chép kỳ trước</button>
+      </div>
+
+      <!-- CHỌN / THÊM / XÓA KHOA PHÒNG -->
+      <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 10px;">
+        <select id="fDept" class="input-control" style="flex: 2;" onchange="fillFormFromCurrentData()"></select>
+        <button type="button" class="btn btn-danger" title="Xóa khoa khỏi danh sách" onclick="deleteCurrentDept()">✕ Xóa khoa</button>
+      </div>
+
+      <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+        <input type="text" id="newDeptName" class="input-control" placeholder="+ Tên khoa/phòng mới...">
+        <button type="button" class="btn btn-secondary" style="white-space: nowrap;" onclick="addNewDept()">+ Thêm Khoa</button>
+      </div>
+
+      <form id="recordForm" onsubmit="saveData(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Tổng Bệnh nhân:</label>
+            <input type="number" min="0" id="fPatients" class="input-control" required>
+          </div>
+          <div class="form-group">
+            <label>Nội trú:</label>
+            <input type="number" min="0" id="fInpatient" class="input-control" value="0">
+          </div>
+          <div class="form-group">
+            <label>Ngoại trú:</label>
+            <input type="number" min="0" id="fOutpatient" class="input-control" value="0">
+          </div>
+          <div class="form-group">
+            <label>Cấp cứu:</label>
+            <input type="number" min="0" id="fEmergency" class="input-control" value="0">
+          </div>
+          <div class="form-group">
+            <label>Tổng Phẫu thuật:</label>
+            <input type="number" min="0" id="fSurgery" class="input-control" value="0">
+          </div>
+          <div class="form-group">
+            <label>Tổng Thủ thuật:</label>
+            <input type="number" min="0" id="fProcedure" class="input-control" value="0">
+          </div>
+        </div>
+
+        <!-- CHI TIẾT THỦ THUẬT -->
+        <div class="item-list-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #0284c7;">Danh mục Thủ thuật cụ thể:</span>
+            <span style="font-size: 0.72rem; color: #64748b;">(Tự cộng dồn lên Tổng)</span>
+          </div>
+          <div id="procedureList"></div>
+          <button type="button" class="btn btn-outline" onclick="addSubItem('proc')">+ Thêm thủ thuật (ví dụ: Nội soi có cắt polyp)</button>
+        </div>
+
+        <!-- CHI TIẾT PHẪU THUẬT -->
+        <div class="item-list-section">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-size: 0.8rem; font-weight: 700; color: #b45309;">Danh mục Phẫu thuật cụ thể:</span>
+            <span style="font-size: 0.72rem; color: #64748b;">(Tự cộng dồn lên Tổng)</span>
+          </div>
+          <div id="surgeryList"></div>
+          <button type="button" class="btn btn-outline" style="border-color: #f59e0b; color: #b45309;" onclick="addSubItem('surg')">+ Thêm phẫu thuật</button>
+        </div>
+
+        <!-- HÀNG NÚT LƯU VÀ XÓA SỐ LIỆU KHOA NÀY -->
+        <div style="display: flex; gap: 8px; margin-top: 14px;">
+          <button type="submit" class="btn btn-primary" style="flex: 2; padding: 11px;">💾 LƯU SỐ LIỆU LÊN SERVER</button>
+          <button type="button" class="btn btn-danger" style="flex: 1; padding: 11px;" onclick="deleteSelectedDeptData()">🗑️ XÓA SỐ LIỆU KHOA NÀY</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PIN = "1234";
+
+    function getStoredPin() {
+      return localStorage.getItem('medstat_user_pin') || DEFAULT_PIN;
+    }
+
+    function unlockApp() {
+      const entered = document.getElementById('pinInput').value;
+      if (entered === getStoredPin()) {
+        document.getElementById('lockScreen').style.display = 'none';
+        document.getElementById('mainApp').style.display = 'block';
+        document.getElementById('pinError').style.display = 'none';
+        document.getElementById('pinInput').value = '';
+        init();
+      } else {
+        document.getElementById('pinError').style.display = 'block';
+      }
+    }
+
+    function lockApp() {
+      document.getElementById('mainApp').style.display = 'none';
+      document.getElementById('lockScreen').style.display = 'flex';
+      document.getElementById('pinInput').value = '';
+      document.getElementById('pinInput').focus();
+    }
+
+    function changePinPrompt() {
+      const oldPin = prompt("Nhập mã PIN hiện tại:");
+      if (oldPin !== getStoredPin()) return alert("Sai mã PIN hiện tại!");
+      const newPin = prompt("Nhập mã PIN mới (4 - 8 ký tự):");
+      if (!newPin || newPin.length < 4) return alert("Mã PIN quá ngắn!");
+      localStorage.setItem('medstat_user_pin', newPin);
+      alert("Đã đổi mã PIN thành công!");
+    }
+
+    document.getElementById('pinInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') unlockApp();
+    });
+
+    let state = {
+      mode: 'week',
+      period: '2026-W38',
+      depts: [],
+      data: {}
+    };
+
+    async function init() {
+      document.getElementById('weekPicker').value = state.period;
+      document.getElementById('monthPicker').value = "2026-09";
+      await fetchServerData();
+    }
+
+    async function fetchServerData() {
+      try {
+        const res = await fetch('/api/data');
+        if (!res.ok) throw new Error("Mất kết nối");
+        const json = await res.json();
+        state.depts = json.depts || [];
+        state.data = json.records || {};
+        updateDeptDropdown();
+        render();
+      } catch (err) {
+        alert("⚠️ Không thể kết nối tới máy chủ LAN!");
+      }
+    }
+
+    function updateDeptDropdown(selectedDept) {
+      const select = document.getElementById('fDept');
+      select.innerHTML = state.depts.map(d => `<option value="${d}">${d}</option>`).join('');
+      if (selectedDept && state.depts.includes(selectedDept)) {
+        select.value = selectedDept;
+      }
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      document.getElementById('modeMonth').classList.toggle('active', mode === 'month');
+      document.getElementById('modeWeek').classList.toggle('active', mode === 'week');
+
+      const mPick = document.getElementById('monthPicker');
+      const wPick = document.getElementById('weekPicker');
+      if (mode === 'month') {
+        mPick.style.display = 'block';
+        wPick.style.display = 'none';
+        state.period = mPick.value || "2026-09";
+      } else {
+        mPick.style.display = 'none';
+        wPick.style.display = 'block';
+        state.period = wPick.value || "2026-W38";
+      }
+      render();
+    }
+
+    function onPeriodChange(val) {
+      if (!val) return;
+      state.period = val;
+      render();
+    }
+
+    function getPrevPeriod(key) {
+      if (key.includes('-W')) {
+        let [y, w] = key.split('-W').map(Number);
+        w--;
+        if (w < 1) { y--; w = 52; }
+        return `${y}-W${String(w).padStart(2, '0')}`;
+      } else {
+        let [y, m] = key.split('-').map(Number);
+        m--;
+        if (m < 1) { y--; m = 12; }
+        return `${y}-${String(m).padStart(2, '0')}`;
+      }
+    }
+
+    function calcDiff(curr, prev) {
+      const c = Number(curr) || 0;
+      const p = Number(prev) || 0;
+      const diff = c - p;
+      let rate = "—";
+      if (p > 0) rate = (diff >= 0 ? "+" : "") + ((diff / p) * 100).toFixed(1) + "%";
+      else if (p === 0 && c > 0) rate = "+100%";
+      else if (p === 0 && c === 0) rate = "0%";
+      return { diff, rate, sign: diff > 0 ? "+" : "" };
+    }
+
+    function render() {
+      const currKey = state.period;
+      const prevKey = getPrevPeriod(currKey);
+      const currData = state.data[currKey] || {};
+      const prevData = state.data[prevKey] || {};
+
+      let totPat = 0, pTotPat = 0;
+      let totSurg = 0, totProc = 0;
+
+      const rows = state.depts.map(d => {
+        const c = currData[d] || { patients: 0, surgery: 0, procedure: 0, procedures: [], surgeries: [] };
+        const p = prevData[d] || { patients: 0, procedures: [], surgeries: [] };
+        totPat += Number(c.patients) || 0;
+        pTotPat += Number(p.patients) || 0;
+        totSurg += Number(c.surgery) || 0;
+        totProc += Number(c.procedure) || 0;
+
+        const cmp = calcDiff(c.patients, p.patients);
+        const cls = cmp.diff > 0 ? "diff-up" : cmp.diff < 0 ? "diff-down" : "diff-same";
+
+        const procTags = (c.procedures || []).map(pr => {
+          const prevItem = (p.procedures || []).find(x => x.name.trim() === pr.name.trim());
+          const prevQty = prevItem ? Number(prevItem.qty) : 0;
+          const itCmp = calcDiff(pr.qty, prevQty);
+          const itCls = itCmp.diff > 0 ? "diff-up" : itCmp.diff < 0 ? "diff-down" : "diff-same";
+          const diffBadge = prevItem !== undefined ? `<span class="${itCls}" style="font-size: 0.68rem; font-weight: 700;">(${itCmp.sign}${itCmp.diff})</span>` : '';
+          return `
+            <div class="tag">
+              <div class="tag-row"><span>🔧 ${pr.name}</span></div>
+              <div class="tag-row" style="margin-top: 2px;">
+                <b>${pr.qty} ca</b>
+                ${diffBadge}
+              </div>
+            </div>`;
+        }).join('');
+
+        const surgTags = (c.surgeries || []).map(su => {
+          const prevItem = (p.surgeries || []).find(x => x.name.trim() === su.name.trim());
+          const prevQty = prevItem ? Number(prevItem.qty) : 0;
+          const itCmp = calcDiff(su.qty, prevQty);
+          const itCls = itCmp.diff > 0 ? "diff-up" : itCmp.diff < 0 ? "diff-down" : "diff-same";
+          const diffBadge = prevItem !== undefined ? `<span class="${itCls}" style="font-size: 0.68rem; font-weight: 700;">(${itCmp.sign}${itCmp.diff})</span>` : '';
+          return `
+            <div class="tag tag-surg">
+              <div class="tag-row"><span>🔪 ${su.name}</span></div>
+              <div class="tag-row" style="margin-top: 2px;">
+                <b>${su.qty} ca</b>
+                ${diffBadge}
+              </div>
+            </div>`;
+        }).join('');
+
+        const hasTags = procTags || surgTags;
+
+        return `
+          <tr onclick="loadDeptToEdit('${d}')">
+            <td class="sticky-col">
+              <div style="font-weight: 700; color: #0284c7; font-size: 0.85rem;">${d}</div>
+              ${hasTags ? `<div class="tag-container">${procTags}${surgTags}</div>` : ''}
+            </td>
+            <td style="font-weight: 700;">${c.patients}</td>
+            <td style="color: #64748b;">${p.patients}</td>
+            <td class="${cls}" style="font-weight: 600;">${cmp.sign}${cmp.diff}</td>
+            <td class="${cls}" style="font-weight: 600;">${cmp.rate}</td>
+            <td>${c.surgery}</td>
+            <td>${c.procedure}</td>
+          </tr>
+        `;
+      }).join('');
+
+      document.getElementById('dataTableBody').innerHTML = rows || `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 12px;">Chưa có dữ liệu.</td></tr>`;
+
+      const totalCmp = calcDiff(totPat, pTotPat);
+      const totCls = totalCmp.diff >= 0 ? "diff-up" : "diff-down";
+      document.getElementById('quickStats').innerHTML = `
+        <div class="stat-box">
+          <div class="title">TỔNG BỆNH NHÂN</div>
+          <div class="val">${totPat}</div>
+          <div class="diff ${totCls}">${totalCmp.sign}${totalCmp.diff} (${totalCmp.rate})</div>
+        </div>
+        <div class="stat-box">
+          <div class="title">PHẪU THUẬT / THỦ THUẬT</div>
+          <div class="val">${totSurg} / ${totProc}</div>
+          <div class="title">kỳ này</div>
+        </div>
+      `;
+
+      renderChart(currData, prevData);
+      renderProcedureSummary(currData, prevData);
+      fillFormFromCurrentData();
+    }
+
+    function renderProcedureSummary(currData, prevData) {
+      const tbody = document.getElementById('procedureSummaryTableBody');
+      const itemMap = {};
+
+      state.depts.forEach(d => {
+        const c = currData[d] || {};
+        (c.procedures || []).forEach(p => {
+          const key = `[TT]_${d}_${p.name.trim()}`;
+          if (!itemMap[key]) itemMap[key] = { name: p.name, type: 'Thủ thuật', dept: d, curr: 0, prev: 0 };
+          itemMap[key].curr += Number(p.qty) || 0;
+        });
+        (c.surgeries || []).forEach(s => {
+          const key = `[PT]_${d}_${s.name.trim()}`;
+          if (!itemMap[key]) itemMap[key] = { name: s.name, type: 'Phẫu thuật', dept: d, curr: 0, prev: 0 };
+          itemMap[key].curr += Number(s.qty) || 0;
+        });
+      });
+
+      state.depts.forEach(d => {
+        const p = prevData[d] || {};
+        (p.procedures || []).forEach(pr => {
+          const key = `[TT]_${d}_${pr.name.trim()}`;
+          if (!itemMap[key]) itemMap[key] = { name: pr.name, type: 'Thủ thuật', dept: d, curr: 0, prev: 0 };
+          itemMap[key].prev += Number(pr.qty) || 0;
+        });
+        (p.surgeries || []).forEach(su => {
+          const key = `[PT]_${d}_${su.name.trim()}`;
+          if (!itemMap[key]) itemMap[key] = { name: su.name, type: 'Phẫu thuật', dept: d, curr: 0, prev: 0 };
+          itemMap[key].prev += Number(su.qty) || 0;
+        });
+      });
+
+      const list = Object.values(itemMap);
+      if (list.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: #94a3b8; padding: 12px;">Chưa có thủ thuật nào được ghi nhận.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = list.map(it => {
+        const cmp = calcDiff(it.curr, it.prev);
+        const cls = cmp.diff > 0 ? "diff-up" : cmp.diff < 0 ? "diff-down" : "diff-same";
+        const isProc = it.type === 'Thủ thuật';
+        return `
+          <tr>
+            <td class="sticky-col">
+              <span class="tag ${isProc ? '' : 'tag-surg'}" style="width: fit-content; padding: 1px 5px; margin-bottom: 2px;">${it.type}</span>
+              <div style="font-weight: 700;">${it.name}</div>
+            </td>
+            <td style="color: #64748b;">${it.dept}</td>
+            <td style="font-weight: 700;">${it.curr}</td>
+            <td style="color: #64748b;">${it.prev}</td>
+            <td class="${cls}" style="font-weight: 600;">${cmp.sign}${cmp.diff}</td>
+            <td class="${cls}" style="font-weight: 600;">${cmp.rate}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderChart(currData, prevData) {
+      const box = document.getElementById('barChartBox');
+      const items = state.depts.map(d => ({
+        name: d.replace('Khoa ', '').replace('Phòng ', ''),
+        curr: Number((currData[d] && currData[d].patients) || 0),
+        prev: Number((prevData[d] && prevData[d].patients) || 0)
+      }));
+
+      const max = Math.max(...items.map(i => Math.max(i.curr, i.prev)), 10);
+      const width = Math.max(320, items.length * 52);
+      const height = 150;
+
+      const bars = items.map((it, idx) => {
+        const x = 16 + idx * 50;
+        const hPrev = (it.prev / max) * 90;
+        const hCurr = (it.curr / max) * 90;
+        return `
+          <g>
+            <rect x="${x}" y="${115 - hPrev}" width="18" height="${hPrev}" fill="#cbd5e1" rx="2"></rect>
+            <rect x="${x + 20}" y="${115 - hCurr}" width="18" height="${hCurr}" fill="#0284c7" rx="2"></rect>
+            <text x="${x + 19}" y="130" text-anchor="middle" font-size="8.5" fill="#475569">${it.name}</text>
+            <text x="${x + 9}" y="${110 - hPrev}" text-anchor="middle" font-size="7.5" fill="#64748b">${it.prev || ''}</text>
+            <text x="${x + 29}" y="${110 - hCurr}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="#0284c7">${it.curr || ''}</text>
+          </g>
+        `;
+      }).join('');
+
+      box.innerHTML = `
+        <svg viewBox="0 0 ${width} ${height}" style="min-width: ${width}px; height: ${height}px;">
+          <line x1="10" y1="115" x2="${width - 10}" y2="115" stroke="#e2e8f0" stroke-width="1"/>
+          ${bars}
+        </svg>
+        <div style="display: flex; gap: 12px; justify-content: center; font-size: 0.75rem; margin-top: 4px;">
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: #cbd5e1; border-radius: 2px;"></span> Kỳ trước</span>
+          <span style="display: flex; align-items: center; gap: 4px;"><span style="width: 10px; height: 10px; background: #0284c7; border-radius: 2px;"></span> Kỳ này</span>
+        </div>
+      `;
+    }
+
+    async function addNewDept() {
+      const input = document.getElementById('newDeptName');
+      const name = input.value.trim();
+      if (!name) return;
+      if (state.depts.includes(name)) return alert("Khoa phòng đã có!");
+      state.depts.push(name);
+      await fetch('/api/update-depts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ depts: state.depts })
+      });
+      input.value = '';
+      updateDeptDropdown(name);
+      render();
+    }
+
+    async function deleteCurrentDept() {
+      const dept = document.getElementById('fDept').value;
+      if (!dept || !confirm(`Bạn có chắc muốn xóa "${dept}" khỏi danh mục?`)) return;
+      state.depts = state.depts.filter(d => d !== dept);
+      await fetch('/api/update-depts', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ depts: state.depts })
+      });
+      updateDeptDropdown();
+      render();
+    }
+
+    function addSubItem(type, name = '', qty = '') {
+      const container = document.getElementById(type === 'proc' ? 'procedureList' : 'surgeryList');
+      const row = document.createElement('div');
+      row.className = 'sub-item-row';
+      row.innerHTML = `
+        <input type="text" class="input-control item-name" placeholder="${type === 'proc' ? 'Tên thủ thuật' : 'Tên phẫu thuật'}" value="${name}" style="flex: 2;">
+        <input type="number" min="0" class="input-control item-qty" placeholder="Số ca" value="${qty}" style="flex: 1;" oninput="sumUpItems('${type}')">
+        <button type="button" class="btn btn-danger" style="padding: 4px 8px;" onclick="this.parentElement.remove(); sumUpItems('${type}');">✕</button>
+      `;
+      container.appendChild(row);
+    }
+
+    function sumUpItems(type) {
+      const containerId = type === 'proc' ? 'procedureList' : 'surgeryList';
+      const totalInputId = type === 'proc' ? 'fProcedure' : 'fSurgery';
+      let total = 0;
+      document.querySelectorAll(`#${containerId} .item-qty`).forEach(inp => {
+        total += parseInt(inp.value, 10) || 0;
+      });
+      if (total > 0) document.getElementById(totalInputId).value = total;
+    }
+
+    function loadDeptToEdit(deptName) {
+      document.getElementById('fDept').value = deptName;
+      fillFormFromCurrentData();
+      document.getElementById('editCard').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function fillFormFromCurrentData() {
+      const dept = document.getElementById('fDept').value;
+      const rec = (state.data[state.period] && state.data[state.period][dept]) || {};
+
+      document.getElementById('fPatients').value = rec.patients !== undefined ? rec.patients : '';
+      document.getElementById('fInpatient').value = rec.inpatient || 0;
+      document.getElementById('fOutpatient').value = rec.outpatient || 0;
+      document.getElementById('fEmergency').value = rec.emergency || 0;
+      document.getElementById('fSurgery').value = rec.surgery || 0;
+      document.getElementById('fProcedure').value = rec.procedure || 0;
+
+      document.getElementById('procedureList').innerHTML = '';
+      document.getElementById('surgeryList').innerHTML = '';
+
+      if (rec.procedures) rec.procedures.forEach(p => addSubItem('proc', p.name, p.qty));
+      if (rec.surgeries) rec.surgeries.forEach(s => addSubItem('surg', s.name, s.qty));
+      document.getElementById('formTitle').innerText = `Sửa: ${dept} (${state.period})`;
+    }
+
+    // LƯU SỐ LIỆU LÊN SERVER
+    async function saveData(e) {
+      e.preventDefault();
+      const dept = document.getElementById('fDept').value;
+      const period = state.period;
+      if (!dept) return;
+
+      const procs = [];
+      document.querySelectorAll('#procedureList .sub-item-row').forEach(r => {
+        const name = r.querySelector('.item-name').value.trim();
+        const qty = parseInt(r.querySelector('.item-qty').value, 10) || 0;
+        if (name) procs.push({ name, qty });
+      });
+
+      const surgs = [];
+      document.querySelectorAll('#surgeryList .sub-item-row').forEach(r => {
+        const name = r.querySelector('.item-name').value.trim();
+        const qty = parseInt(r.querySelector('.item-qty').value, 10) || 0;
+        if (name) surgs.push({ name, qty });
+      });
+
+      const recordData = {
+        patients: Number(document.getElementById('fPatients').value) || 0,
+        inpatient: Number(document.getElementById('fInpatient').value) || 0,
+        outpatient: Number(document.getElementById('fOutpatient').value) || 0,
+        emergency: Number(document.getElementById('fEmergency').value) || 0,
+        surgery: Number(document.getElementById('fSurgery').value) || 0,
+        procedure: Number(document.getElementById('fProcedure').value) || 0,
+        procedures: procs,
+        surgeries: surgs
+      };
+
+      try {
+        const res = await fetch('/api/save-dept', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ period, dept, recordData })
+        });
+        if (!res.ok) throw new Error();
+
+        if (!state.data[period]) state.data[period] = {};
+        state.data[period][dept] = recordData;
+        render();
+        alert(`✅ Đã lưu và đồng bộ thành công số liệu ${dept}!`);
+      } catch (err) {
+        alert("❌ Lỗi khi gửi dữ liệu lên máy chủ!");
+      }
+    }
+
+    // 1. XÓA SỐ LIỆU CỦA KHOA ĐANG CHỌN TRONG KỲ HIỆN TẠI
+    async function deleteSelectedDeptData() {
+      const dept = document.getElementById('fDept').value;
+      const period = state.period;
+      if (!confirm(`Bạn có chắc muốn XÓA TRẮNG toàn bộ số liệu của "${dept}" trong ${period}?`)) return;
+
+      try {
+        const res = await fetch('/api/delete-dept-data', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ period, dept })
+        });
+        if (!res.ok) throw new Error();
+
+        if (state.data[period] && state.data[period][dept]) {
+          delete state.data[period][dept];
+        }
+        fillFormFromCurrentData();
+        render();
+        alert(`🗑️ Đã xóa số liệu của ${dept} trong ${period}!`);
+      } catch (e) {
+        alert("Lỗi khi kết nối xóa dữ liệu trên Server!");
+      }
+    }
+
+    // 2. XÓA TOÀN BỘ SỐ LIỆU CỦA CẢ KỲ (TUẦN/THÁNG NÀY)
+    async function deleteCurrentPeriodData() {
+      const period = state.period;
+      if (!confirm(`⚠️ CẢNH BÁO: Bạn sắp xóa TOÀN BỘ số liệu của TẤT CẢ các khoa trong kỳ [${period}]. Tiếp tục?`)) return;
+
+      try {
+        const res = await fetch('/api/delete-period', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ period })
+        });
+        if (!res.ok) throw new Error();
+
+        delete state.data[period];
+        fillFormFromCurrentData();
+        render();
+        alert(`🗑️ Đã xóa sạch dữ liệu của kỳ ${period}!`);
+      } catch (e) {
+        alert("Lỗi khi kết nối máy chủ!");
+      }
+    }
+
+    // 3. XÓA TRẮNG TOÀN BỘ HỆ THỐNG (RESET DATABASE)
+    async function resetDatabaseAll() {
+      if (!confirm("⚠️ NGUY HIỂM: Thao tác này sẽ XÓA SẠCH toàn bộ số liệu của tất cả các tuần/tháng trên máy chủ!")) return;
+      const confirmText = prompt("Gõ chữ 'XOA' vào ô dưới đây để xác nhận xóa toàn bộ:");
+      if (confirmText !== 'XOA') return alert("Hủy thao tác xóa!");
+
+      try {
+        const res = await fetch('/api/reset-all', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'}
+        });
+        if (!res.ok) throw new Error();
+
+        state.data = {};
+        fillFormFromCurrentData();
+        render();
+        alert("🗑️ Đã reset trắng toàn bộ cơ sở dữ liệu trên máy chủ!");
+      } catch (e) {
+        alert("Lỗi khi kết nối máy chủ!");
+      }
+    }
+
+    function copyPrevPeriod() {
+      const prevKey = getPrevPeriod(state.period);
+      const dept = document.getElementById('fDept').value;
+      const prevRec = state.data[prevKey] && state.data[prevKey][dept];
+      if (!prevRec) return alert(`Không có dữ liệu kỳ trước (${prevKey})`);
+
+      document.getElementById('fPatients').value = prevRec.patients || 0;
+      document.getElementById('fInpatient').value = prevRec.inpatient || 0;
+      document.getElementById('fOutpatient').value = prevRec.outpatient || 0;
+      document.getElementById('fEmergency').value = prevRec.emergency || 0;
+      document.getElementById('fSurgery').value = prevRec.surgery || 0;
+      document.getElementById('fProcedure').value = prevRec.procedure || 0;
+
+      document.getElementById('procedureList').innerHTML = '';
+      document.getElementById('surgeryList').innerHTML = '';
+      if (prevRec.procedures) prevRec.procedures.forEach(p => addSubItem('proc', p.name, p.qty));
+      if (prevRec.surgeries) prevRec.surgeries.forEach(s => addSubItem('surg', s.name, s.qty));
+    }
+  </script>
+</body>
+</html>
