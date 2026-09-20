@@ -7,8 +7,9 @@
   <title>MedStat LAN - Báo Cáo Bệnh Viện</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; -webkit-tap-highlight-color: transparent; }
-    body { background: #f1f5f9; color: #0f172a; padding: 12px; padding-bottom: 80px; }
+    body { background: #f1f5f9; color: #0f172a; padding: 12px; padding-bottom: 75px; }
 
+    /* Màn hình khóa PIN */
     #lockScreen {
       position: fixed; inset: 0; background: #0f172a; z-index: 9999;
       display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -24,6 +25,7 @@
       color: #38bdf8; outline: none; margin: 16px 0;
     }
 
+    /* Giao diện chính */
     .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
     .header h1 { font-size: 1.15rem; color: #0284c7; }
 
@@ -54,6 +56,7 @@
     .chart-box { width: 100%; overflow-x: auto; padding: 8px 0; }
     svg { display: block; width: 100%; height: auto; }
 
+    /* Bảng dữ liệu với Cột đầu tiên cố định (Sticky Freeze) */
     .table-box { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 6px; border: 1px solid #e2e8f0; position: relative; }
     table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 0.8rem; text-align: left; min-width: 600px; }
     th, td { padding: 8px 10px; border-bottom: 1px solid #e2e8f0; vertical-align: top; white-space: nowrap; }
@@ -79,6 +82,7 @@
       background: #e0f2fe;
     }
 
+    /* Thẻ Tag thủ thuật kèm số tăng giảm */
     .tag-container { display: flex; flex-direction: column; gap: 4px; margin-top: 5px; }
     .tag { display: flex; flex-direction: column; background: #e0f2fe; color: #0369a1; padding: 4px 6px; border-radius: 4px; font-size: 0.72rem; line-height: 1.3; }
     .tag-surg { background: #fef3c7; color: #92400e; }
@@ -96,7 +100,7 @@
     .sub-item-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: center; }
 
     .btn { padding: 8px 12px; border-radius: 6px; border: none; font-weight: 600; font-size: 0.85rem; cursor: pointer; display: inline-flex; justify-content: center; align-items: center; gap: 4px; }
-    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary { background: #0284c7; color: #fff; width: 100%; margin-top: 12px; padding: 11px; }
     .btn-secondary { background: #e2e8f0; color: #1e293b; font-size: 0.75rem; padding: 5px 8px; border-radius: 4px; }
     .btn-danger { background: #fee2e2; color: #dc2626; border: 1px solid #fca5a5; }
     .btn-outline { background: #fff; border: 1px dashed #0284c7; color: #0284c7; width: 100%; font-size: 0.8rem; padding: 6px; margin-top: 4px; }
@@ -109,9 +113,9 @@
     <div class="pin-box">
       <div style="font-size: 2rem; margin-bottom: 6px;">🔒</div>
       <h2 style="font-size: 1.1rem; font-weight: 700;">HỆ THỐNG NỘI BỘ LAN</h2>
-      <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Nhập mã PIN để mở khóa</p>
+      <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 4px;">Nhập mã PIN để truy cập số liệu</p>
       <input type="password" id="pinInput" class="pin-input" maxlength="8" placeholder="••••" autofocus>
-      <button class="btn btn-primary" style="width: 100%;" onclick="unlockApp()">XÁC NHẬN MỞ KHÓA</button>
+      <button class="btn btn-primary" onclick="unlockApp()">XÁC NHẬN MỞ KHÓA</button>
       <p id="pinError" style="color: #f87171; font-size: 0.75rem; margin-top: 10px; display: none;">Sai mã PIN!</p>
     </div>
   </div>
@@ -121,17 +125,16 @@
     <div class="header">
       <div>
         <h1>🏥 MedStat Báo Cáo</h1>
-        <div class="lan-indicator"><span class="dot"></span> Đồng bộ Mạng LAN</div>
+        <div class="lan-indicator"><span class="dot"></span> Đang kết nối Máy chủ LAN</div>
       </div>
-      <div style="display: flex; gap: 5px;">
+      <div style="display: flex; gap: 6px;">
         <button class="btn btn-secondary" onclick="fetchServerData()">🔄 Tải lại</button>
-        <button class="btn btn-danger btn-secondary" onclick="resetDatabaseAll()">🗑️ Xóa hết số liệu</button>
         <button class="btn btn-secondary" onclick="changePinPrompt()">🔑 PIN</button>
         <button class="btn btn-secondary" onclick="lockApp()">🔒</button>
       </div>
     </div>
 
-    <!-- BỘ CHỌN THỜI GIAN & XÓA KỲ -->
+    <!-- BỘ CHỌN THỜI GIAN -->
     <div class="control-card">
       <div class="toggle-group">
         <button id="modeMonth" class="toggle-btn" onclick="setMode('month')">Theo Tháng</button>
@@ -140,7 +143,6 @@
       <div class="input-row">
         <input type="month" id="monthPicker" class="input-control" style="display: none;" onchange="onPeriodChange(this.value)">
         <input type="week" id="weekPicker" class="input-control" onchange="onPeriodChange(this.value)">
-        <button class="btn btn-danger" style="white-space: nowrap; font-size: 0.75rem; padding: 7px 10px;" onclick="deleteCurrentPeriodData()">🗑️ Xóa cả kỳ này</button>
       </div>
     </div>
 
@@ -155,7 +157,7 @@
       <div class="chart-box" id="barChartBox"></div>
     </div>
 
-    <!-- BẢNG BÁO CÁO KHOA PHÒNG & THỦ THUẬT -->
+    <!-- BẢNG BÁO CÁO KHOA PHÒNG & THỦ THUẬT (CỘT 1 ĐỨNG YÊN) -->
     <div class="card">
       <div class="card-title">
         <span>Bảng Số Liệu Khoa / Phòng</span>
@@ -201,7 +203,7 @@
       </div>
     </div>
 
-    <!-- FORM NHẬP / SỬA / XÓA SỐ LIỆU -->
+    <!-- FORM NHẬP / SỬA -->
     <div class="card" id="editCard">
       <div class="card-title">
         <span id="formTitle">Nhập / Sửa Số Liệu Khoa</span>
@@ -211,7 +213,7 @@
       <!-- CHỌN / THÊM / XÓA KHOA PHÒNG -->
       <div style="display: flex; gap: 6px; align-items: center; margin-bottom: 10px;">
         <select id="fDept" class="input-control" style="flex: 2;" onchange="fillFormFromCurrentData()"></select>
-        <button type="button" class="btn btn-danger" title="Xóa khoa khỏi danh sách" onclick="deleteCurrentDept()">✕ Xóa khoa</button>
+        <button type="button" class="btn btn-danger" title="Xóa khoa này" onclick="deleteCurrentDept()">✕ Xóa khoa</button>
       </div>
 
       <div style="display: flex; gap: 6px; margin-bottom: 12px;">
@@ -251,7 +253,7 @@
         <div class="item-list-section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 0.8rem; font-weight: 700; color: #0284c7;">Danh mục Thủ thuật cụ thể:</span>
-            <span style="font-size: 0.72rem; color: #64748b;">(Tự cộng dồn lên Tổng)</span>
+            <span style="font-size: 0.72rem; color: #64748b;">(Tự động cộng dồn lên Tổng)</span>
           </div>
           <div id="procedureList"></div>
           <button type="button" class="btn btn-outline" onclick="addSubItem('proc')">+ Thêm thủ thuật (ví dụ: Nội soi có cắt polyp)</button>
@@ -261,22 +263,19 @@
         <div class="item-list-section">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-size: 0.8rem; font-weight: 700; color: #b45309;">Danh mục Phẫu thuật cụ thể:</span>
-            <span style="font-size: 0.72rem; color: #64748b;">(Tự cộng dồn lên Tổng)</span>
+            <span style="font-size: 0.72rem; color: #64748b;">(Tự động cộng dồn lên Tổng)</span>
           </div>
           <div id="surgeryList"></div>
           <button type="button" class="btn btn-outline" style="border-color: #f59e0b; color: #b45309;" onclick="addSubItem('surg')">+ Thêm phẫu thuật</button>
         </div>
 
-        <!-- HÀNG NÚT LƯU VÀ XÓA SỐ LIỆU KHOA NÀY -->
-        <div style="display: flex; gap: 8px; margin-top: 14px;">
-          <button type="submit" class="btn btn-primary" style="flex: 2; padding: 11px;">💾 LƯU SỐ LIỆU LÊN SERVER</button>
-          <button type="button" class="btn btn-danger" style="flex: 1; padding: 11px;" onclick="deleteSelectedDeptData()">🗑️ XÓA SỐ LIỆU KHOA NÀY</button>
-        </div>
+        <button type="submit" class="btn btn-primary">💾 LƯU SỐ LIỆU LÊN MÁY CHỦ</button>
       </form>
     </div>
   </div>
 
   <script>
+    // --- XÁC THỰC MÃ PIN TRUY CẬP ---
     const DEFAULT_PIN = "1234";
 
     function getStoredPin() {
@@ -316,6 +315,7 @@
       if (e.key === 'Enter') unlockApp();
     });
 
+    // --- QUẢN LÝ DỮ LIỆU ĐỒNG BỘ LAN ---
     let state = {
       mode: 'week',
       period: '2026-W38',
@@ -329,17 +329,18 @@
       await fetchServerData();
     }
 
+    // Tải dữ liệu từ máy chủ trung tâm
     async function fetchServerData() {
       try {
         const res = await fetch('/api/data');
-        if (!res.ok) throw new Error("Mất kết nối");
+        if (!res.ok) throw new Error("Không thể kết nối máy chủ");
         const json = await res.json();
         state.depts = json.depts || [];
         state.data = json.records || {};
         updateDeptDropdown();
         render();
       } catch (err) {
-        alert("⚠️ Không thể kết nối tới máy chủ LAN!");
+        alert("⚠️ Không thể kết nối tới máy chủ LAN! Kiểm tra xem máy tính chủ có đang bật không.");
       }
     }
 
@@ -410,6 +411,7 @@
       let totPat = 0, pTotPat = 0;
       let totSurg = 0, totProc = 0;
 
+      // 1. Dựng Bảng số liệu Khoa / Phòng kèm Tags Thủ thuật có chênh lệch
       const rows = state.depts.map(d => {
         const c = currData[d] || { patients: 0, surgery: 0, procedure: 0, procedures: [], surgeries: [] };
         const p = prevData[d] || { patients: 0, procedures: [], surgeries: [] };
@@ -473,6 +475,7 @@
 
       document.getElementById('dataTableBody').innerHTML = rows || `<tr><td colspan="7" style="text-align: center; color: #94a3b8; padding: 12px;">Chưa có dữ liệu.</td></tr>`;
 
+      // 2. Thống kê nhanh
       const totalCmp = calcDiff(totPat, pTotPat);
       const totCls = totalCmp.diff >= 0 ? "diff-up" : "diff-down";
       document.getElementById('quickStats').innerHTML = `
@@ -608,7 +611,7 @@
 
     async function deleteCurrentDept() {
       const dept = document.getElementById('fDept').value;
-      if (!dept || !confirm(`Bạn có chắc muốn xóa "${dept}" khỏi danh mục?`)) return;
+      if (!dept || !confirm(`Xóa "${dept}"?`)) return;
       state.depts = state.depts.filter(d => d !== dept);
       await fetch('/api/update-depts', {
         method: 'POST',
@@ -624,7 +627,7 @@
       const row = document.createElement('div');
       row.className = 'sub-item-row';
       row.innerHTML = `
-        <input type="text" class="input-control item-name" placeholder="${type === 'proc' ? 'Tên thủ thuật' : 'Tên phẫu thuật'}" value="${name}" style="flex: 2;">
+        <input type="text" class="input-control item-name" placeholder="${type === 'proc' ? 'Tên thủ thuật (VD: Nội soi có cắt polyp)' : 'Tên phẫu thuật'}" value="${name}" style="flex: 2;">
         <input type="number" min="0" class="input-control item-qty" placeholder="Số ca" value="${qty}" style="flex: 1;" oninput="sumUpItems('${type}')">
         <button type="button" class="btn btn-danger" style="padding: 4px 8px;" onclick="this.parentElement.remove(); sumUpItems('${type}');">✕</button>
       `;
@@ -666,7 +669,7 @@
       document.getElementById('formTitle').innerText = `Sửa: ${dept} (${state.period})`;
     }
 
-    // LƯU SỐ LIỆU LÊN SERVER
+    // Gửi số liệu vừa nhập lên Máy chủ trung tâm qua mạng LAN
     async function saveData(e) {
       e.preventDefault();
       const dept = document.getElementById('fDept').value;
@@ -709,78 +712,9 @@
         if (!state.data[period]) state.data[period] = {};
         state.data[period][dept] = recordData;
         render();
-        alert(`✅ Đã lưu và đồng bộ thành công số liệu ${dept}!`);
+        alert(`✅ Đã lưu và đồng bộ thành công số liệu ${dept} lên máy chủ!`);
       } catch (err) {
-        alert("❌ Lỗi khi gửi dữ liệu lên máy chủ!");
-      }
-    }
-
-    // 1. XÓA SỐ LIỆU CỦA KHOA ĐANG CHỌN TRONG KỲ HIỆN TẠI
-    async function deleteSelectedDeptData() {
-      const dept = document.getElementById('fDept').value;
-      const period = state.period;
-      if (!confirm(`Bạn có chắc muốn XÓA TRẮNG toàn bộ số liệu của "${dept}" trong ${period}?`)) return;
-
-      try {
-        const res = await fetch('/api/delete-dept-data', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ period, dept })
-        });
-        if (!res.ok) throw new Error();
-
-        if (state.data[period] && state.data[period][dept]) {
-          delete state.data[period][dept];
-        }
-        fillFormFromCurrentData();
-        render();
-        alert(`🗑️ Đã xóa số liệu của ${dept} trong ${period}!`);
-      } catch (e) {
-        alert("Lỗi khi kết nối xóa dữ liệu trên Server!");
-      }
-    }
-
-    // 2. XÓA TOÀN BỘ SỐ LIỆU CỦA CẢ KỲ (TUẦN/THÁNG NÀY)
-    async function deleteCurrentPeriodData() {
-      const period = state.period;
-      if (!confirm(`⚠️ CẢNH BÁO: Bạn sắp xóa TOÀN BỘ số liệu của TẤT CẢ các khoa trong kỳ [${period}]. Tiếp tục?`)) return;
-
-      try {
-        const res = await fetch('/api/delete-period', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({ period })
-        });
-        if (!res.ok) throw new Error();
-
-        delete state.data[period];
-        fillFormFromCurrentData();
-        render();
-        alert(`🗑️ Đã xóa sạch dữ liệu của kỳ ${period}!`);
-      } catch (e) {
-        alert("Lỗi khi kết nối máy chủ!");
-      }
-    }
-
-    // 3. XÓA TRẮNG TOÀN BỘ HỆ THỐNG (RESET DATABASE)
-    async function resetDatabaseAll() {
-      if (!confirm("⚠️ NGUY HIỂM: Thao tác này sẽ XÓA SẠCH toàn bộ số liệu của tất cả các tuần/tháng trên máy chủ!")) return;
-      const confirmText = prompt("Gõ chữ 'XOA' vào ô dưới đây để xác nhận xóa toàn bộ:");
-      if (confirmText !== 'XOA') return alert("Hủy thao tác xóa!");
-
-      try {
-        const res = await fetch('/api/reset-all', {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'}
-        });
-        if (!res.ok) throw new Error();
-
-        state.data = {};
-        fillFormFromCurrentData();
-        render();
-        alert("🗑️ Đã reset trắng toàn bộ cơ sở dữ liệu trên máy chủ!");
-      } catch (e) {
-        alert("Lỗi khi kết nối máy chủ!");
+        alert("❌ Lỗi khi gửi dữ liệu lên máy chủ! Kiểm tra kết nối mạng LAN.");
       }
     }
 
